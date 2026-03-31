@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+      :root { --navy: #002e5b; --gold: #b8860b; --green: #28a745; --yellow: #ffc107; --grey: #e0e0e0; --red: #dc3545; }
+      body { font-family: 'Segoe UI', Arial; background: #f0f4f8; margin: 0; padding-top: 100px; }
+      .screen { display: none; padding: 15px; }
+      .active { display: block; }
+      .branding { background: var(--navy); color: white; text-align: center; padding: 20px; border-bottom: 4px solid var(--gold); }
+      .card { background: white; max-width: 480px; margin: 30px auto; padding: 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); border-top: 5px solid var(--navy); }
+      input[type="text"] { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+      .btn-main { background: var(--navy); color: white; width: 100%; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+      .opt-label { display: flex; align-items: center; padding: 12px; border: 1px solid #eee; margin: 8px 0; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+      .opt-label:hover { background: #f9f9f9; }
+      .opt-label input { margin-right: 12px; transform: scale(1.3); cursor: pointer; }
+      .opt-text { font-size: 1.1em; color: #333; }
+      .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; }
+      .q-dot { height: 40px; border: 1px solid #ddd; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; background: var(--grey); }
+      .q-dot.attempted { background: var(--green) !important; color: white; border: none; }
+      .q-dot.reviewed { background: var(--yellow) !important; color: #000; border: none; }
+      .q-dot.current { border: 2px solid var(--navy); }
+      .legend-box { margin-top: 25px; border-top: 2px solid #eee; padding-top: 15px; }
+      .legend-item { font-size: 18px; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; color: #333; }
+      .dot-sample { width: 18px; height: 18px; border-radius: 50%; display: inline-block; margin-right: 12px; }
+      .notes-footer { background: white; padding: 20px; border-left: 6px solid var(--navy); margin: 30px auto; max-width: 1060px; border-radius: 0 8px 8px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+      #cert-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#555; z-index:1000; overflow:auto; padding: 20px 0; }
+      .cert-box { width: 210mm; height: 148mm; margin: 20px auto; padding: 10px; background: #fff; box-sizing: border-box; border: 15px solid var(--navy); position: relative; }
+      .cert-inner { border: 5px double var(--gold); height: 100%; text-align: center; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+      .sig-row { display:flex; justify-content:space-around; margin-top: auto; padding-bottom: 20px; }
+      .sig-line { border-top:1px solid #000; width:200px; padding-top:8px; font-size:15px; font-weight: bold; }
+      @media print {
+        @page { size: landscape; margin: 0; }
+        body { background: none; margin: 0; padding: 0; }
+        .no-print, .branding, .screen, .notes-footer { display: none !important; }
+        #cert-overlay { display: block !important; position: static; background: none; padding: 0; margin: 0; }
+        .cert-box { width: 100vw; height: 100vh; margin: 0; border-width: 25px; }
+        .cert-inner { padding: 50px; }
+      }
+      /* Loader */
+      #loader { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; text-align:center; padding-top:200px; font-weight:bold; }
+  </style>
+</head>
+<body>
+
+<div id="loader">Processing... Please wait...</div>
+
+<div class="branding">
+  <h1>IQRA PUBLIC SCHOOL</h1>
+  <p style="color:var(--gold);">ONLINE TEST PORTAL</p>
+</div>
+
+<div id="login-screen" class="screen active">
+  <div class="card">
+    <h3 style="text-align:center; color:var(--navy);">Student Information</h3>
+    <input type="text" id="fname" placeholder="Student Full Name">
+    <input type="text" id="father" placeholder="Father's Name">
+    <input type="text" id="sclass" placeholder="Class">
+    <input type="text" id="sroll" placeholder="Roll No">
+    <button class="btn-main" onclick="startTest()">START EXAMINATION</button>
+    <button class="btn-main" style="background:var(--gold); margin-top:15px;" onclick="showScreen('search-screen')">Download Certificate</button>
+  </div>
+</div>
+
+<div id="search-screen" class="screen">
+  <div class="card">
+    <h3 style="text-align:center;">Find Your Certificate</h3>
+    <input type="text" id="search-class" placeholder="Enter Class">
+    <input type="text" id="search-roll" placeholder="Enter Roll No">
+    <button class="btn-main" onclick="fetchOldResult()">GENERATE CERTIFICATE</button>
+    <button class="btn-main" style="background:#666" onclick="showScreen('login-screen')">BACK</button>
+  </div>
+</div>
+
+<div id="exam-screen" class="screen">
+  <div style="max-width:1100px; margin:auto; display:flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px;">
+    <h4 id="q-count" style="margin:0; color:var(--navy)">Question 1</h4>
+    <div id="timer-display" style="color:var(--red); font-weight:bold; font-size:22px;">Time Left: 60:00</div>
+  </div>
+  <div style="max-width:1100px; margin:auto; display:flex; gap:20px; flex-wrap:wrap;">
+    <div style="flex: 2; min-width: 320px; background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+      <p id="q-text" style="font-size:1.3em; font-weight:bold;"></p>
+      <div id="options-area"></div>
+      <div style="margin-top:30px; display:flex; justify-content:space-between;">
+        <button onclick="nav(-1)" style="padding:10px 20px; cursor:pointer;">Previous</button>
+        <button onclick="markReview()" style="padding:10px 20px; background:var(--yellow); border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Review Later</button>
+        <button onclick="nav(1)" style="padding:10px 20px; background:var(--green); color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Next</button>
+      </div>
+    </div>
+    <div style="flex:1; min-width: 250px;">
+      <div class="card" style="margin:0; width:100%;">
+        <h4 style="margin-top:0">Navigation Palette</h4>
+        <div class="palette" id="palette"></div>
+        <div class="legend-box">
+          <div class="legend-item"><span class="dot-sample" style="background:var(--green)"></span> Attempted</div>
+          <div class="legend-item"><span class="dot-sample" style="background:var(--yellow)"></span> Marked for Review</div>
+          <div class="legend-item"><span class="dot-sample" style="background:var(--grey); border:1px solid #ccc;"></span> Not Attempted</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes-footer">
+    <h3 style="margin-top:0; color:var(--navy)">IMPORTANT INSTRUCTIONS:</h3>
+    <ul style="font-weight: bold; font-size: 15px;">
+      <li>Refresh button na dabayein, varna progress lost ho jayegi.</li>
+      <li>Timer khatam hote hi test apne aap submit ho jayega.</li>
+      <li>Certificate download karne ke liye 'Finish & Submit' dabayein.</li>
+    </ul>
+  </div>
+  <div style="text-align:center; padding-bottom:40px;">
+    <button class="btn-main" style="max-width:350px; background:darkgreen; font-size:18px;" onclick="submitExam()">FINISH & SUBMIT TEST</button>
+  </div>
+</div>
+
+<div id="result-screen" class="screen">
+  <div class="card" style="text-align:center; border-top:8px solid var(--green);">
+    <h1 style="color:var(--green)">Test Submitted!</h1>
+    <h2 id="disp-score" style="font-size:40px; margin:20px 0;">Score: 0/0</h2>
+    <button class="btn-main" style="background:var(--yellow); color:black" onclick="openCert()">VIEW CERTIFICATE</button>
+  </div>
+</div>
+
+<div id="cert-overlay">
+  <div style="text-align:center; padding:20px;" class="no-print">
+    <button onclick="window.print()" style="padding:12px 30px; background:var(--green); color:white; border:none; cursor:pointer; font-weight:bold; border-radius:5px;">PRINT / SAVE PDF</button>
+    <button onclick="location.reload()" style="padding:12px 30px; margin-left:10px; cursor:pointer; font-weight:bold; border-radius:5px;">CLOSE</button>
+  </div>
+  <div class="cert-box">
+    <div class="cert-inner">
+      <div>
+        <h2 style="color:var(--navy); margin:0; font-size:30px;">UMS SADAR GALI PATNA CITY</h2>
+        <p style="margin:5px 0 0; font-size:15px;">Sadar Gali, Patna City - 800008</p>
+        <h1 style="color:var(--gold); font-size:52px; margin:20px 0; font-family: 'Times New Roman';">CERTIFICATE</h1>
+        <p style="font-size:20px;">This is to certify that <b id="cert-name" style="border-bottom:1px solid #333; font-size:24px;"></b></p>
+        <p style="font-size:18px;">Father's Name: <b id="cert-father"></b></p>
+        <p style="font-size:18px;">Class: <b id="cert-class"></b> | Roll No: <b id="cert-roll"></b></p>
+        <p style="margin-top:25px; font-size:20px;">Has successfully completed the Online Test with a score of:</p>
+        <h2 id="cert-score" style="color:var(--navy); font-size:38px; margin:10px 0;"></h2>
+      </div>
+      <div class="sig-row">
+        <div class="sig-line">Signature of Teacher</div>
+        <div class="sig-line">Signature of Principal</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // YAHAN APNA GOOGLE APPS SCRIPT KA URL PASTE KAREIN
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfsXauLlzCO8kk6-CQfNiMJ5mqrzhXirXqw8AUPOcqAWka6sfSj80H9rYEZ1h-QLVj/exec";
+
+  let questions = []; let currentIdx = 0; let answers = {}; let reviews = {}; let info = {};
+  let timeLeft = 60 * 60; let timerInterval;
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  function startTest() {
+    const fn = document.getElementById('fname').value;
+    const rl = document.getElementById('sroll').value;
+    if(!fn || !rl) { alert("Please fill Name and Roll No"); return; }
+    
+    info = { name: fn, father: document.getElementById('father').value, sClass: document.getElementById('sclass').value, roll: rl };
+    
+    document.getElementById('loader').style.display = 'block';
+    
+    fetch(WEB_APP_URL + "?action=getQuestions")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('loader').style.display = 'none';
+        questions = data; 
+        genPalette(); 
+        showQ(0); 
+        showScreen('exam-screen');
+        timerInterval = setInterval(updateTimer, 1000);
+      })
+      .catch(err => {
+        alert("Error loading questions. Check URL or Internet.");
+        document.getElementById('loader').style.display = 'none';
+      });
+  }
+
+  function updateTimer() {
+    let m = Math.floor(timeLeft / 60);
+    let s = timeLeft % 60;
+    document.getElementById('timer-display').innerText = `Time Left: ${m}:${s < 10 ? '0' : ''}${s}`;
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      alert("Time is up! Submitting automatically...");
+      finalizeAuto();
+    }
+    timeLeft--;
+  }
+
+  function genPalette() {
+    const pal = document.getElementById('palette'); pal.innerHTML = "";
+    questions.forEach((_, i) => {
+      let d = document.createElement('div'); d.className = 'q-dot'; d.innerText = i + 1; d.id = 'p-' + i;
+      d.onclick = () => showQ(i); pal.appendChild(d);
+    });
+  }
+
+  function showQ(i) {
+    currentIdx = i; const q = questions[i];
+    document.querySelectorAll('.q-dot').forEach(b => b.classList.remove('current'));
+    document.getElementById('p-'+i).classList.add('current');
+    document.getElementById('q-count').innerText = "Question " + (i+1);
+    document.getElementById('q-text').innerText = q[1];
+    let html = '';
+    [q[2], q[3], q[4], q[5]].forEach(opt => {
+      let chk = (answers[i] === opt) ? 'checked' : '';
+      html += `<label class="opt-label"><input type="radio" name="opt" onchange="saveAns('${opt}')" ${chk}><span class="opt-text">${opt}</span></label>`;
+    });
+    document.getElementById('options-area').innerHTML = html;
+  }
+
+  function saveAns(v) { 
+    answers[currentIdx] = v; delete reviews[currentIdx];
+    document.getElementById('p-'+currentIdx).className = 'q-dot attempted';
+  }
+
+  function markReview() { 
+    reviews[currentIdx] = true;
+    document.getElementById('p-'+currentIdx).className = 'q-dot reviewed';
+    nav(1);
+  }
+
+  function nav(s) { let n = currentIdx + s; if(n >= 0 && n < questions.length) showQ(n); }
+
+  function submitExam() {
+    if(!confirm("Submit Test?")) return;
+    clearInterval(timerInterval);
+    finalizeAuto();
+  }
+
+  function finalizeAuto() {
+    let score = 0; questions.forEach((q,i) => { if(answers[i] === q[6]) score++; });
+    info.score = score; info.total = questions.length;
+    document.getElementById('loader').style.display = 'block';
+
+    fetch(WEB_APP_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "submit", info: info })
+    })
+    .then(res => res.json())
+    .then(res => {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('disp-score').innerText = "Score: " + score + "/" + questions.length;
+      showScreen('result-screen');
+    });
+  }
+
+  function fetchOldResult() {
+    let s = { c: document.getElementById('search-class').value, r: document.getElementById('search-roll').value };
+    document.getElementById('loader').style.display = 'block';
+    
+    fetch(WEB_APP_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "search", params: s })
+    })
+    .then(res => res.json())
+    .then(res => {
+      document.getElementById('loader').style.display = 'none';
+      if(res) { fillCert(res); document.getElementById('cert-overlay').style.display='block'; }
+      else { alert("Result Not Found!"); }
+    });
+  }
+
+  function openCert() { fillCert(info); document.getElementById('cert-overlay').style.display='block'; }
+
+  function fillCert(d) {
+    document.getElementById('cert-name').innerText = d.name;
+    document.getElementById('cert-father').innerText = d.father;
+    document.getElementById('cert-class').innerText = d.sClass;
+    document.getElementById('cert-roll').innerText = d.roll;
+    document.getElementById('cert-score').innerText = (d.score.toString().includes("/") ? d.score : d.score + "/" + questions.length);
+  }
+</script>
+</body>
+</html>
